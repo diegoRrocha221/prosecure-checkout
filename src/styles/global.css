@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-text: #25364D;
+  --primary-button: #F4B860;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  color: var(--primary-text);
+}
+
+/* Animações de transição para os steps */
+.step-enter {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.step-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.step-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.step-exit-active {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Responsividade melhorada */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  input, select, button {
+    font-size: 16px !important; /* Previne zoom em iOS */
+  }
+}
+
+/* Estilos base melhorados */
+.form-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.input-base {
+  @apply w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#F4B860] focus:border-[#F4B860] transition-colors text-base;
+}
+
+.button-primary {
+  @apply px-6 py-4 bg-[#F4B860] text-white rounded-lg hover:bg-[#e5aa57] transition-colors font-medium text-lg;
+}
+
+.button-secondary {
+  @apply px-6 py-4 bg-gray-200 text-[#25364D] rounded-lg hover:bg-gray-300 transition-colors font-medium text-lg;
+}
+
+/* Melhorias visuais para os steps */
+.step-indicator {
+  @apply flex items-center justify-center w-10 h-10 rounded-full text-lg font-medium transition-all duration-300;
+}
+
+.step-indicator.active {
+  @apply bg-[#F4B860] text-white;
+}
+
+.step-indicator.completed {
+  @apply bg-green-500 text-white;
+}
+
+/* Estilos para o verificador de código */
+.verification-box {
+  @apply bg-gray-50 p-6 rounded-lg border border-gray-200 mt-4;
+}
+
+.verification-code-input {
+  @apply w-full text-center tracking-[1em] text-2xl;
+}
+
+.resend-button {
+  @apply text-[#F4B860] hover:text-[#e5aa57] disabled:text-gray-400 text-sm font-medium mt-2;
+}
