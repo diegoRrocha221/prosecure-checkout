@@ -1,6 +1,6 @@
 import { FC, useState, useEffect, useMemo } from 'react';
 import { InfoIcon, EyeIcon, EyeOffIcon, AlertCircle, Check } from 'lucide-react';
-import { Alert, AlertDescription } from '../ui/alert';
+
 
 interface AccountCreationProps {
   formData: {
@@ -22,7 +22,7 @@ export const AccountCreation: FC<AccountCreationProps> = ({
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState<string>('');
+  
 
   const [validations, setValidations] = useState({
     hasUppercase: false,
@@ -75,11 +75,7 @@ export const AccountCreation: FC<AccountCreationProps> = ({
           a number, and a special character. For better security, consider using a complete phrase.
         </p>
 
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+
 
         <div className="space-y-6">
           {/* Username (Email) - Read Only */}

@@ -1,13 +1,14 @@
+// src/components/checkout/PlanAssociation.tsx
 import { FC, useEffect, useState } from 'react';
 import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
+import { checkoutService } from '../../services/api';
 
 interface PlanAssociationProps {
   formData: {
     email: string;
     username: string;
   };
-  onUpdate: (data: any) => void;
   onNext: () => void;
   onBack: () => void;
 }
@@ -25,7 +26,14 @@ export const PlanAssociation: FC<PlanAssociationProps> = ({
     const associatePlan = async () => {
       try {
         setStatus('loading');
-        // Simular etapas do processo com progresso
+        
+        // Verificar se tem itens no carrinho primeiro
+        const cartResponse = await checkoutService.getCart();
+        if (!cartResponse?.items?.length) {
+          throw new Error('No items in cart. Please add plans before proceeding.');
+        }
+  
+        // Simulação de progresso visual
         const steps = [
           'Initializing your account...',
           'Configuring security settings...',
@@ -37,38 +45,24 @@ export const PlanAssociation: FC<PlanAssociationProps> = ({
           setProgress(((i + 1) / steps.length) * 100);
           await new Promise(resolve => setTimeout(resolve, 800));
         }
-
-        const response = await fetch('https://pay.prosecurelsp.com/api/associate-plan', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            checkout_id: localStorage.getItem('checkout_id'),
-            email: formData.email,
-            username: formData.username
-          })
-        });
-
-        if (response.ok) {
-          setStatus('success');
-          setTimeout(() => {
-            onNext();
-          }, 2000);
-        } else {
-          const data = await response.json();
-          throw new Error(data.message || 'Failed to associate plan');
+  
+        const checkoutId = localStorage.getItem('checkout_id');
+        if (!checkoutId) {
+          throw new Error('Checkout session not found');
         }
-      } catch (err) {
+  
+        await checkoutService.linkAccount(checkoutId);
         setStatus('success');
         setTimeout(() => {
           onNext();
         }, 2000);
-        //setStatus('error');
-        //setError(err instanceof Error ? err.message : 'Failed to associate plan');
+  
+      } catch (err: any) {
+        setStatus('error');
+        setError(err?.response?.data?.message || err?.message || 'Failed to associate plan');
       }
     };
-
+  
     if (status === 'idle') {
       associatePlan();
     }

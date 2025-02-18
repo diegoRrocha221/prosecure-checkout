@@ -1,19 +1,26 @@
 import { FC, useEffect, useState } from 'react';
-import { Check, MapPin, Mail, Phone, User, CreditCard, Package } from 'lucide-react';
+import { Check, MapPin, Mail, User, Package } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
-import { FormData } from '../../types/checkout';
+import { checkoutService } from '../../services/api';
+import { useNotification } from '../../hooks/useNotification';
+import { ReviewStepProps } from '../../types/checkout';
 
-interface ReviewProps {
-  formData: FormData;
-  onNext: () => void;
-  onBack: () => void;
-  setCurrentStep: (step: number) => void;
-}
 
 interface PlanDetails {
-  name: string;
+  plan_id: number;
+  plan_name: string;
+  plan_description: string;
   price: number;
-  billing: string;
+  plan_quantity: number;
+  is_annual: boolean;
+}
+
+interface CartDetails {
+  items: PlanDetails[];
+  cart_subtotal: number;
+  cart_discount: number;
+  shortfall_for_discount: string;
+  cart_total: number;
 }
 
 const InfoSection: FC<{ 
@@ -39,37 +46,27 @@ const InfoRow: FC<{ label: string; value: string | number }> = ({ label, value }
   </div>
 );
 
-export const ReviewStep: FC<ReviewProps> = ({ formData, onNext, setCurrentStep }) => {
-  const [plans, setPlans] = useState<PlanDetails[]>([]);
+export const ReviewStep: FC<ReviewStepProps> = ({ formData, onNext, onBack}) => {
+  const [cartDetails, setCartDetails] = useState<CartDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { addNotification } = useNotification();
 
   useEffect(() => {
-    const loadPlans = async () => {
+    const fetchCartDetails = async () => {
       try {
-        const checkoutId = localStorage.getItem('checkout_id');
-        const response = await fetch(`https://pay.prosecurelsp.com/api/get-plans?checkout_id=${checkoutId}`);
-        if (!response.ok) throw new Error('Failed to load plans');
-        const data = await response.json();
-        setPlans(data.plans);
-      } catch (err) {
-        setError('Failed to load plan details');
+        setIsLoading(true);
+        const response = await checkoutService.getCart();
+        setCartDetails(response);
+      } catch (error) {
+        console.error('Error fetching cart details:', error);
+        addNotification('error', 'Failed to load cart details. Please try again.');
       } finally {
         setIsLoading(false);
       }
     };
-    loadPlans();
+
+    fetchCartDetails();
   }, []);
-
-  const calculateTotals = () => {
-    const subtotal = plans.reduce((sum, plan) => sum + plan.price, 0);
-    const discount = subtotal; // 100% discount for trial period
-    const total = 0; // First month is free
-
-    return { subtotal, discount, total };
-  };
-
-  const { subtotal, discount, total } = calculateTotals();
 
   if (isLoading) {
     return (
@@ -79,13 +76,23 @@ export const ReviewStep: FC<ReviewProps> = ({ formData, onNext, setCurrentStep }
     );
   }
 
-  if (error) {
+  if (!cartDetails || cartDetails.items.length === 0) {
     return (
       <Alert variant="destructive">
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription>No items in cart. Please go back and select plans.</AlertDescription>
       </Alert>
     );
   }
+
+  const calculateTotals = () => {
+    const subtotal = cartDetails.cart_subtotal;
+    const discount = cartDetails.cart_discount;
+    const total = cartDetails.cart_total;
+
+    return { subtotal, discount, total };
+  };
+
+  const { subtotal, discount, total } = calculateTotals();
 
   return (
     <div className="space-y-6 max-w-form mx-auto">
@@ -118,39 +125,45 @@ export const ReviewStep: FC<ReviewProps> = ({ formData, onNext, setCurrentStep }
         </InfoSection>
 
         <InfoSection title="Selected Plans" icon={<Package className="w-6 h-6" />}>
-          {plans.map((plan, index) => (
+          {cartDetails.items.map((plan, index) => (
             <div key={index} className="py-2 border-b border-gray-100 last:border-0">
               <div className="flex justify-between items-center">
-                <span className="text-primary font-medium">{plan.name}</span>
+                <span className="text-primary font-medium">
+                  {plan.plan_name} {plan.is_annual && '(Annual)'}
+                </span>
                 <span className="text-gray-600">${plan.price.toFixed(2)}</span>
               </div>
-              <span className="text-sm text-gray-500">{plan.billing}</span>
+              <span className="text-sm text-gray-500">{plan.plan_description}</span>
             </div>
           ))}
           
           <div className="mt-4 pt-4 border-t border-gray-200">
             <InfoRow label="Subtotal" value={`$${subtotal.toFixed(2)}`} />
-            <InfoRow label="New Subscriber Package" value={`-$${discount.toFixed(2)}`} />
+            {discount > 0 && (
+              <InfoRow label="Discount" value={`-$${discount.toFixed(2)}`} />
+            )}
+            
+            
             <div className="mt-2 pt-2 border-t border-gray-200">
               <InfoRow 
-                label="Total amount charged today" 
+                label="Total amount" 
                 value={`$${total.toFixed(2)}`}
               />
             </div>
           </div>
           
           <p className="text-sm text-gray-500 mt-4">
-            Your card will not be charged until after your 30-day trial period.
+            Your order details are shown above.
           </p>
         </InfoSection>
       </div>
 
       <div className="flex gap-4">
         <button
-          onClick={() => setCurrentStep(2)} // Volta direto para o segundo passo
+          onClick={onBack}
           className="flex-1 button-secondary"
         >
-          Back to Account Creation
+          Back
         </button>
         <button
           onClick={onNext}

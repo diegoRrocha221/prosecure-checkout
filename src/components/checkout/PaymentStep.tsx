@@ -1,13 +1,8 @@
-import { FC, useState, useEffect } from 'react';
+import { FC, useState } from 'react';
 import { IMaskInput } from 'react-imask';
-import { Loader2, AlertCircle, LockKeyhole, CreditCard } from 'lucide-react';
+import { Loader2,  LockKeyhole, CreditCard } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
-import { FormData } from '../../types/checkout';
-
-interface PaymentProps {
-  formData: FormData;
-  onBack: () => void;
-}
+import { PaymentProps, PaymentInfo } from '../../types/checkout';
 
 // Regex para identificar bandeiras de cartão
 const CARD_PATTERNS = {
@@ -29,12 +24,14 @@ const CARD_LOGOS = {
   jcb: 'https://prosecurelsp.com/images/jcb.svg'
 };
 
-export const PaymentStep: FC<PaymentProps> = ({ formData, onBack }) => {
-  const [paymentData, setPaymentData] = useState({
+
+export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
+  const [paymentData, setPaymentData] = useState<PaymentInfo>({
     cardName: '',
     cardNumber: '',
     expiry: '',
-    cvv: ''
+    cvv: '',
+    sid: checkoutId
   });
   const [cardBrand, setCardBrand] = useState<string | null>(null);
   const [error, setError] = useState<string>('');
@@ -102,7 +99,7 @@ export const PaymentStep: FC<PaymentProps> = ({ formData, onBack }) => {
           cardnumber: paymentData.cardNumber.replace(/\D/g, ''),
           cvv: paymentData.cvv,
           expiry: paymentData.expiry,
-          sid: localStorage.getItem('checkout_id')
+          sid: checkoutId
         }),
       });
 
@@ -155,7 +152,7 @@ export const PaymentStep: FC<PaymentProps> = ({ formData, onBack }) => {
             </p>
           </div>
           <div className="flex items-center gap-2 text-primary">
-              <LockKeyhole className="w-5 h-5" />
+            <LockKeyhole className="w-5 h-5" />
             <span className="text-sm font-medium">Secure Payment</span>
           </div>
         </div>

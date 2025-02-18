@@ -1,9 +1,10 @@
-import { FC, useEffect, useMemo } from 'react';
+import { FC, useMemo, useState, useEffect } from 'react';
 import { IMaskInput } from 'react-imask';
-import { AlertCircle, Check } from 'lucide-react';
+import { AlertCircle, Check, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
 import { PersonalInfoProps, Country } from '../../types/checkout';
 import { useMFAVerification } from '../../hooks/useMFAVerification';
+import { checkoutService } from '../../services/api';
 import { COUNTRY_CONFIGS, CountryCode } from '../../utils/phoneMasks';
 import VerificationBox from './VerificationBox';
 
@@ -14,6 +15,11 @@ const COUNTRIES: Country[] = [
   { code: 'BR' as CountryCode, name: 'Brazil', flag: '🇧🇷', prefix: '+55' }
 ];
 
+// Função para limpar número de telefone
+const cleanPhoneNumber = (phone: string) => {
+  return phone.replace(/\D/g, '');
+};
+
 export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext }) => {
   const {
     isVerifying,
@@ -22,12 +28,47 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
     error,
     sendVerificationCode,
     verifyCode,
+    resendCode,
   } = useMFAVerification();
 
-  const handlePhoneChange = (value: string) => {
-    onUpdate({ ...formData, phone: value });
-  };
+  const [emailAvailability, setEmailAvailability] = useState<{
+    checking: boolean;
+    available: boolean | null;
+  }>({
+    checking: false,
+    available: null
+  });
 
+  // Email availability check
+  useEffect(() => {
+    const checkEmailAvailability = async () => {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setEmailAvailability({ checking: false, available: null });
+        return;
+      }
+
+      setEmailAvailability(prev => ({ ...prev, checking: true }));
+      try {
+        const available = await checkoutService.checkEmailAvailability(formData.email);
+        setEmailAvailability({ 
+          checking: false, 
+          available: available 
+        });
+      } catch (err) {
+        setEmailAvailability({ checking: false, available: null });
+      }
+    };
+
+    // Debounce email availability check
+    const timeoutId = setTimeout(checkEmailAvailability, 500);
+    return () => clearTimeout(timeoutId);
+  }, [formData.email]);
+
+  const handlePhoneChange = (value: string) => {
+    const cleanedPhone = cleanPhoneNumber(value);
+    onUpdate({ ...formData, phone: cleanedPhone });
+  };
   const handleZipCodeChange = async (zip: string) => {
     onUpdate({ ...formData, zipCode: zip });
     if (formData.country.code === 'US' && zip.length === 5) {
@@ -47,12 +88,15 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
       }
     }
   };
-
   const handleVerify = () => {
     const countryConfig = COUNTRY_CONFIGS[formData.country.code as CountryCode];
+    
+    // Formata o número com o código do país
+    const fullPhoneNumber = `${formData.country.prefix}${cleanPhoneNumber(formData.phone)}`;
+    
     if (countryConfig.validate(formData.phone)) {
       sendVerificationCode(
-        `${formData.country.prefix}${formData.phone}`,
+        fullPhoneNumber,
         formData.email
       );
     }
@@ -68,6 +112,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
       formData.firstName.trim() !== '' &&
       formData.lastName.trim() !== '' &&
       formData.email.trim() !== '' &&
+      emailAvailability.available === true &&
       formData.phone.trim() !== '' &&
       formData.zipCode.trim() !== '' &&
       formData.state.trim() !== '' &&
@@ -75,7 +120,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
       formData.street.trim() !== '' &&
       isVerified
     );
-  }, [formData, isVerified]);
+  }, [formData, isVerified, emailAvailability.available]);
 
   const renderRequiredIndicator = (fieldName: keyof typeof formData) => {
     if (fieldName !== 'additional') {
@@ -126,14 +171,39 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
           <label className="block text-sm font-medium text-primary mb-2">
             Email {renderRequiredIndicator('email')}
           </label>
-          <input
-            type="email"
-            className="input-base"
-            value={formData.email}
-            onChange={(e) => onUpdate({ ...formData, email: e.target.value })}
-            placeholder="john.doe@example.com"
-            required
-          />
+          <div className="relative">
+            <input
+              type="email"
+              className={`input-base pr-10 ${
+                formData.email && emailAvailability.available === false 
+                  ? 'border-red-500' 
+                  : formData.email && emailAvailability.available === true 
+                    ? 'border-green-500' 
+                    : ''
+              }`}
+              value={formData.email}
+              onChange={(e) => onUpdate({ ...formData, email: e.target.value })}
+              placeholder="john.doe@example.com"
+              required
+            />
+            {formData.email && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                {emailAvailability.checking ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-blue-600"></div>
+                ) : emailAvailability.available === false ? (
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                ) : emailAvailability.available === true ? (
+                  <Check className="w-5 h-5 text-green-500" />
+                ) : null}
+              </div>
+            )}
+          </div>
+          {formData.email && emailAvailability.available === false && (
+            <p className="mt-1 text-sm text-red-600 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              This email is already registered
+            </p>
+          )}
         </div>
 
         {/* Telefone */}
@@ -198,10 +268,22 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
         {showVerificationInput && !isVerified && (
           <VerificationBox
             onVerify={(code) => verifyCode(code, formData.email)}
-            onResend={handleVerify}
+            onResend={() => {
+              resendCode(
+                `${formData.country.prefix}${formData.phone}`,
+                formData.email
+              );
+            }}
             isVerifying={isVerifying}
             error={error}
+            phone={`${formData.country.prefix}${formData.phone}`}
           />
+        )}
+
+        {error && !showVerificationInput && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         {/* Código Postal */}

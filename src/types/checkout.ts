@@ -71,3 +71,14 @@ export interface PersonalInfoProps {
   onNext: () => void;
 }
 
+export interface PaymentProps {
+  formData: FormData;
+  onBack: () => void;
+  checkoutId: string; // Adicionando a propriedade checkoutId
+}
+export interface ReviewStepProps {
+  formData: FormData;
+  onNext: () => void;
+  onBack: () => void;
+  setCurrentStep: (step: number) => void;
+}
