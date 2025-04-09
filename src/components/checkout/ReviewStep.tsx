@@ -68,6 +68,37 @@ export const ReviewStep: FC<ReviewStepProps> = ({ formData, onNext, onBack}) => 
     fetchCartDetails();
   }, []);
 
+  // Calcula a data de renovação com base em is_annual
+  const getRenewalDate = () => {
+    if (!cartDetails || cartDetails.items.length === 0) return '';
+    
+    const currentDate = new Date();
+    let hasAnnualPlan = false;
+    
+    // Verificar se existe algum plano anual no carrinho
+    for (const item of cartDetails.items) {
+      if (item.is_annual) {
+        hasAnnualPlan = true;
+        break;
+      }
+    }
+    
+    // Adicionar dias com base no tipo de plano
+    const renewalDate = new Date(currentDate);
+    if (hasAnnualPlan) {
+      renewalDate.setDate(currentDate.getDate() + 365); // Plano anual - adiciona 1 ano
+    } else {
+      renewalDate.setDate(currentDate.getDate() + 30); // Plano mensal - adiciona 30 dias
+    }
+    
+    // Formatar a data como mm/dd/yy
+    const month = String(renewalDate.getMonth() + 1).padStart(2, '0');
+    const day = String(renewalDate.getDate()).padStart(2, '0');
+    const year = String(renewalDate.getFullYear()).slice(-2);
+    
+    return `${month}/${day}/${year}`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -87,12 +118,15 @@ export const ReviewStep: FC<ReviewStepProps> = ({ formData, onNext, onBack}) => 
   const calculateTotals = () => {
     const subtotal = cartDetails.cart_subtotal;
     const discount = cartDetails.cart_discount;
+    const first_month_discount = cartDetails.cart_total; 
     const total = cartDetails.cart_total;
+    const total_first_month = first_month_discount - total;
 
-    return { subtotal, discount, total };
+    return { subtotal, discount, first_month_discount, total_first_month, total };
   };
 
   const { subtotal, discount, total } = calculateTotals();
+  const renewalDate = getRenewalDate();
 
   return (
     <div className="space-y-6 max-w-form mx-auto">
@@ -146,22 +180,37 @@ export const ReviewStep: FC<ReviewStepProps> = ({ formData, onNext, onBack}) => 
             
             <div className="mt-2 pt-2 border-t border-gray-200">
               <InfoRow 
-                label="Total amount" 
+                label="total amount" 
                 value={`$${total.toFixed(2)}`}
+              />
+            </div>
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <InfoRow 
+                label="First Month Discount" 
+                value={`-$${total.toFixed(2)}`}
+              />
+              <InfoRow 
+                label="Total charged today" 
+                value="$ 0.00"
               />
             </div>
           </div>
           
           <p className="text-sm text-gray-500 mt-4">
-            Your order details are shown above.
+            Your account will automatically renew on {renewalDate} and on the same day every month thereafter for the amount shown above. You may cancel anytime by signing into your account portal.
           </p>
         </InfoSection>
       </div>
 
       <div className="flex gap-4">
         <button
-          onClick={onBack}
+          onClick={() => {
+            formData.password = '';
+            formData.confirmPassword = '';
+            onBack();
+          }}
           className="flex-1 button-secondary"
+
         >
           Back
         </button>

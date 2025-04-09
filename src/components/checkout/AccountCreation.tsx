@@ -62,6 +62,12 @@ export const AccountCreation: FC<AccountCreationProps> = ({
     }));
   };
 
+  // Verifica se todos os requisitos da senha estão atendidos
+  const isPasswordValid = validations.hasUppercase && 
+                         validations.hasNumber && 
+                         validations.hasSpecial && 
+                         validations.hasMinLength;
+
   const isFormValid = useMemo(() => {
     return Object.values(validations).every(Boolean);
   }, [validations]);
@@ -74,8 +80,6 @@ export const AccountCreation: FC<AccountCreationProps> = ({
           Your passphrase must contain at least 8 characters, including an uppercase letter,
           a number, and a special character. For better security, consider using a complete phrase.
         </p>
-
-
 
         <div className="space-y-6">
           {/* Username (Email) - Read Only */}
@@ -107,16 +111,23 @@ export const AccountCreation: FC<AccountCreationProps> = ({
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={(e) => handlePasswordChange(e.target.value)}
-                className="input-base pr-10"
+                className={`input-base pr-10 ${
+                  isPasswordValid && formData.password ? 'border-green-500 focus:border-green-500 focus:ring-green-500' : ''
+                }`}
                 placeholder="Enter your passphrase"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-              </button>
+              <div className="absolute inset-y-0 right-3 flex items-center">
+                {isPasswordValid && formData.password && (
+                  <Check className="w-5 h-5 text-green-500 mr-2" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
             <div className="mt-2 space-y-1">
               <div className={`flex items-center text-sm ${validations.hasMinLength ? 'text-green-600' : 'text-gray-500'}`}>
@@ -148,16 +159,23 @@ export const AccountCreation: FC<AccountCreationProps> = ({
                 type={showConfirmPassword ? "text" : "password"}
                 value={formData.confirmPassword}
                 onChange={(e) => handleConfirmPasswordChange(e.target.value)}
-                className="input-base pr-10"
+                className={`input-base pr-10 ${
+                  validations.passwordsMatch && formData.confirmPassword ? 'border-green-500 focus:border-green-500 focus:ring-green-500' : ''
+                }`}
                 placeholder="Confirm your passphrase"
               />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showConfirmPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-              </button>
+              <div className="absolute inset-y-0 right-3 flex items-center">
+                {validations.passwordsMatch && formData.confirmPassword && (
+                  <Check className="w-5 h-5 text-green-500 mr-2" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
             {formData.confirmPassword && (
               <div className={`flex items-center text-sm mt-2 ${validations.passwordsMatch ? 'text-green-600' : 'text-red-600'}`}>
@@ -181,7 +199,7 @@ export const AccountCreation: FC<AccountCreationProps> = ({
           disabled={!isFormValid}
           className={`flex-1 py-4 rounded-lg font-medium text-lg transition-colors
             ${isFormValid 
-              ? 'bg-accent text-white hover:bg-accent-hover' 
+              ? 'bg-[#157347] text-white hover:bg-[#126A40]' 
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
         >
           Continue

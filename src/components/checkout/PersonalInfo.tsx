@@ -29,7 +29,25 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
     sendVerificationCode,
     verifyCode,
     resendCode,
+    resetVerification
   } = useMFAVerification();
+
+  // Inicializar o estado de verificação com base no formData
+  useEffect(() => {
+    if (formData.mfaVerified && !isVerified) {
+
+    }
+  }, []);
+
+  // Atualizar o formData quando a verificação for bem-sucedida
+  useEffect(() => {
+    if (isVerified && !formData.mfaVerified) {
+      onUpdate({
+        ...formData,
+        mfaVerified: true
+      });
+    }
+  }, [isVerified, formData.mfaVerified]);
 
   const [emailAvailability, setEmailAvailability] = useState<{
     checking: boolean;
@@ -67,8 +85,14 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
 
   const handlePhoneChange = (value: string) => {
     const cleanedPhone = cleanPhoneNumber(value);
-    onUpdate({ ...formData, phone: cleanedPhone });
+    onUpdate({ 
+      ...formData, 
+      phone: cleanedPhone,
+      mfaVerified: false // Reset do estado de verificação quando o telefone muda
+    });
+    resetVerification(); // Reset do estado do hook de verificação
   };
+  
   const handleZipCodeChange = async (zip: string) => {
     onUpdate({ ...formData, zipCode: zip });
     if (formData.country.code === 'US' && zip.length === 5) {
@@ -88,6 +112,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
       }
     }
   };
+  
   const handleVerify = () => {
     const countryConfig = COUNTRY_CONFIGS[formData.country.code as CountryCode];
     
@@ -118,7 +143,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
       formData.state.trim() !== '' &&
       formData.city.trim() !== '' &&
       formData.street.trim() !== '' &&
-      isVerified
+      (isVerified || formData.mfaVerified) // Verifica ambos os estados de verificação
     );
   }, [formData, isVerified, emailAvailability.available]);
 
@@ -128,6 +153,9 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
     }
     return null;
   };
+
+  // Determina se o telefone está verificado (usando formData ou estado atual)
+  const isPhoneVerified = isVerified || formData.mfaVerified;
 
   return (
     <div className="space-y-6 max-w-form mx-auto">
@@ -210,7 +238,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
         <div className="form-group mb-6">
           <label className="block text-sm font-medium text-primary mb-2">
             Phone Number {renderRequiredIndicator('phone')}
-            {isVerified && (
+            {isPhoneVerified && (
               <span className="ml-2 text-green-600 inline-flex items-center">
                 <Check className="w-4 h-4 mr-1" />
                 Verified
@@ -223,9 +251,15 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
               value={formData.country.code}
               onChange={(e) => {
                 const country = COUNTRIES.find(c => c.code === e.target.value) as Country;
-                onUpdate({ ...formData, country, phone: '' });
+                onUpdate({ 
+                  ...formData, 
+                  country, 
+                  phone: '', 
+                  mfaVerified: false // Reset verificação quando o país muda
+                });
+                resetVerification();
               }}
-              disabled={isVerified}
+              disabled={isPhoneVerified}
             >
               {COUNTRIES.map(country => (
                 <option key={country.code} value={country.code}>
@@ -240,12 +274,12 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
                 value={formData.phone}
                 unmask={false}
                 onAccept={handlePhoneChange}
-                className={`input-base ${isVerified ? 'bg-gray-50' : ''}`}
+                className={`input-base ${isPhoneVerified ? 'bg-gray-50' : ''}`}
                 placeholder={COUNTRY_CONFIGS[formData.country.code as CountryCode].example}
-                disabled={isVerified}
+                disabled={isPhoneVerified}
                 required
               />
-              {!isVerified && (
+              {!isPhoneVerified && (
                 <button
                   onClick={handleVerify}
                   disabled={isVerifying || !formData.phone || !formData.email || !isPhoneValid()}
@@ -256,7 +290,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
               )}
             </div>
           </div>
-          {!isVerified && formData.phone && !isPhoneValid() && (
+          {!isPhoneVerified && formData.phone && !isPhoneValid() && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
               <AlertCircle className="w-4 h-4 mr-1" />
               Please enter a valid phone number
@@ -265,7 +299,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
         </div>
 
         {/* Código de Verificação */}
-        {showVerificationInput && !isVerified && (
+        {showVerificationInput && !isPhoneVerified && (
           <VerificationBox
             onVerify={(code) => verifyCode(code, formData.email)}
             onResend={() => {
@@ -371,7 +405,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
         disabled={!isFormValid}
         className={`w-full py-4 rounded-lg font-medium text-lg transition-colors
           ${isFormValid 
-            ? 'bg-accent text-white hover:bg-accent-hover' 
+            ? 'bg-[#157347] text-white hover:bg-[#126A40]' 
             : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
       >
         Continue

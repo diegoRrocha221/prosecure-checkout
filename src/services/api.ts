@@ -25,7 +25,8 @@ interface CheckoutData {
   plan?: number;
 }
 
-interface PaymentInfo {
+// This interface matches what our API expects
+interface PaymentRequest {
   cardname: string;
   cardnumber: string;
   cvv: string;
@@ -52,6 +53,11 @@ interface CartResponse {
 export interface PaymentProps {
   onBack: () => void;
   checkoutId: string;
+}
+
+interface UpdateCheckoutIdPayload {
+  old_checkout_id: string;
+  new_checkout_id: string;
 }
 
 // Criar instância do axios com configurações padrão
@@ -107,6 +113,23 @@ export const checkoutService = {
     }
   },
 
+  async updateCheckoutId(oldCheckoutId: string, newCheckoutId: string): Promise<APIResponse> {
+    try {
+      const payload: UpdateCheckoutIdPayload = {
+        old_checkout_id: oldCheckoutId,
+        new_checkout_id: newCheckoutId
+      };
+      
+      console.log('Updating checkout ID:', payload);
+      const response = await api.post<APIResponse>('/api/update-checkout-id', payload);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error updating checkout ID:', error);
+      throw error;
+    }
+  },
+
   async createOrUpdateCheckout(data: Partial<CheckoutData>): Promise<APIResponse> {
     try {
       const response = await api.post<APIResponse>('/api/checkout', data);
@@ -141,7 +164,6 @@ export const checkoutService = {
 
   async linkAccount(checkoutId: string): Promise<APIResponse> {
     try {
-      // Primeiro verificar o carrinho
       console.log('Checking cart before linking account...');
       const cartResponse = await this.getCart();
       
@@ -178,7 +200,7 @@ export const checkoutService = {
       throw error;
     }
   },
-  async processPayment(data: PaymentInfo): Promise<APIResponse> {
+  async processPayment(data: PaymentRequest): Promise<APIResponse> {
     try {
       const response = await api.post<APIResponse>('/api/process-payment', data);
       return response.data;
@@ -189,4 +211,4 @@ export const checkoutService = {
   }
 };
 
-export type { CheckoutData, PaymentInfo, APIResponse, CartResponse };
+export type { CheckoutData, PaymentRequest, APIResponse, CartResponse };

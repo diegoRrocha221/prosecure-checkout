@@ -1,8 +1,9 @@
-import { FC, useState } from 'react';
+import { FC, useState, useEffect } from 'react';
 import { IMaskInput } from 'react-imask';
-import { Loader2,  LockKeyhole, CreditCard } from 'lucide-react';
+import { Loader2, LockKeyhole, CreditCard, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
 import { PaymentProps, PaymentInfo } from '../../types/checkout';
+import { checkoutService } from '../../services/api';
 
 // Regex para identificar bandeiras de cartão
 const CARD_PATTERNS = {
@@ -24,7 +25,6 @@ const CARD_LOGOS = {
   jcb: 'https://prosecurelsp.com/images/jcb.svg'
 };
 
-
 export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
   const [paymentData, setPaymentData] = useState<PaymentInfo>({
     cardName: '',
@@ -37,6 +37,68 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [formErrors, setFormErrors] = useState<{
+    cardNumber?: string;
+    expiry?: string;
+    cvv?: string;
+    cardName?: string;
+  }>({});
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [currentCheckoutId, setCurrentCheckoutId] = useState(checkoutId);
+
+  // Detect card brand when card number changes
+  useEffect(() => {
+    setCardBrand(detectCardBrand(paymentData.cardNumber));
+  }, [paymentData.cardNumber]);
+
+  // Update payment data when checkout ID changes
+  useEffect(() => {
+    setPaymentData(prev => ({ ...prev, sid: currentCheckoutId }));
+  }, [currentCheckoutId]);
+
+  // Validate form when input changes
+  useEffect(() => {
+    const errors: {
+      cardNumber?: string;
+      expiry?: string;
+      cvv?: string;
+      cardName?: string;
+    } = {};
+    
+    let valid = true;
+
+    if (paymentData.cardName.trim() && !validateCardName(paymentData.cardName)) {
+      errors.cardName = 'Please enter the cardholder name';
+      valid = false;
+    }
+
+    if (paymentData.cardNumber.replace(/\D/g, '').length >= 13 && !validateCardNumber(paymentData.cardNumber)) {
+      errors.cardNumber = 'Please enter a valid card number';
+      valid = false;
+    }
+
+    if (paymentData.expiry.length === 5 && !validateExpiryDate(paymentData.expiry)) {
+      errors.expiry = 'Please enter a valid expiration date';
+      valid = false;
+    }
+
+    if (paymentData.cvv.length >= 3 && !validateCVV(paymentData.cvv)) {
+      errors.cvv = 'Please enter a valid CVV';
+      valid = false;
+    }
+
+    setFormErrors(errors);
+    
+    // Check if all fields have values and no errors
+    const allFieldsFilled = 
+      paymentData.cardName.trim() !== '' && 
+      paymentData.cardNumber.replace(/\D/g, '').length >= 13 &&
+      paymentData.expiry.length === 5 && 
+      paymentData.cvv.length >= 3;
+      
+    setIsFormValid(valid && allFieldsFilled);
+  }, [paymentData]);
 
   const detectCardBrand = (number: string) => {
     const cleanNumber = number.replace(/\D/g, '');
@@ -65,56 +127,107 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
     return true;
   };
 
+  const validateCardNumber = (number: string): boolean => {
+    const cleanNumber = number.replace(/\D/g, '');
+    return cleanNumber.length >= 13 && cleanNumber.length <= 19;
+  };
+
+  const validateCVV = (cvv: string): boolean => {
+    return cvv.length >= 3 && cvv.length <= 4;
+  };
+
+  const validateCardName = (name: string): boolean => {
+    return name.trim().length > 0;
+  };
+
   const handleExpiryChange = (value: string) => {
     setPaymentData(prev => ({ ...prev, expiry: value }));
-    if (value.length === 5 && !validateExpiryDate(value)) {
-      setError('Please enter a valid expiration date');
-    } else {
-      setError('');
-    }
   };
 
   const handleCardNumberChange = (value: string) => {
     setPaymentData(prev => ({ ...prev, cardNumber: value }));
-    setCardBrand(detectCardBrand(value));
+  };
+
+  const handleCVVChange = (value: string) => {
+    setPaymentData(prev => ({ ...prev, cvv: value }));
+  };
+
+  const handleCardNameChange = (value: string) => {
+    setPaymentData(prev => ({ ...prev, cardName: value }));
+  };
+
+  // Generate a new checkout ID and update the record in the database
+  const generateAndUpdateCheckoutId = async () => {
+    try {
+      // Store the old checkout ID before generating a new one
+      const oldCheckoutId = currentCheckoutId;
+      
+      // Generate a new checkout ID
+      const newCheckoutId = await checkoutService.generateCheckoutId();
+      
+      // Update the checkout ID in the database
+      await checkoutService.updateCheckoutId(oldCheckoutId, newCheckoutId);
+      
+      // Update local state with the new checkout ID
+      setCurrentCheckoutId(newCheckoutId);
+      localStorage.setItem('checkout_id', newCheckoutId);
+      
+      console.log('Updated checkout ID from', oldCheckoutId, 'to', newCheckoutId);
+      
+      return newCheckoutId;
+    } catch (error) {
+      console.error('Failed to generate and update checkout ID:', error);
+      // In case of failure, continue with the current ID
+      return currentCheckoutId;
+    }
   };
 
   const handleSubmit = async () => {
-    if (!validateExpiryDate(paymentData.expiry)) {
-      setError('Please enter a valid expiration date');
+    setError('');
+    
+    if (!acceptedTerms) {
+      setError('Please accept the terms of service and billing agreement');
+      return;
+    }
+
+    if (!isFormValid) {
+      setError('Please correct the errors in the form');
       return;
     }
 
     setLoading(true);
-    setError('');
 
     try {
-      const response = await fetch('https://pay.prosecurelsp.com/api/process-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          cardname: paymentData.cardName,
-          cardnumber: paymentData.cardNumber.replace(/\D/g, ''),
-          cvv: paymentData.cvv,
-          expiry: paymentData.expiry,
-          sid: checkoutId
-        }),
-      });
+      // Generate a new checkout ID and update the database record
+      const activeCheckoutId = await generateAndUpdateCheckoutId();
+      
+      // Prepare the payment data for the API
+      // Note: The API expects different property names than our internal PaymentInfo interface
+      const paymentPayload = {
+        cardname: paymentData.cardName,
+        cardnumber: paymentData.cardNumber.replace(/\D/g, ''),
+        cvv: paymentData.cvv,
+        expiry: paymentData.expiry,
+        sid: activeCheckoutId
+      };
+      
+      // Process the payment with the updated checkout ID
+      const response = await checkoutService.processPayment(paymentPayload);
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (response.status === 'success') {
         setSuccess(true);
         setTimeout(() => {
           window.location.href = 'https://prosecurelsp.com/users/index.php?err3=true';
         }, 5000);
       } else {
-        setError(data.message || 'Payment processing failed. Please try again.');
+        setError('Payment processing failed. Please try again.');
       }
-    } catch (err) {
-      setError('Network error. Please try again.');
+    } catch (err: any) {
+      if (err.response) {
+        setError('Payment processing failed. Please try again.');
+      } else {
+        setError('Network error. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -171,11 +284,17 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
             </label>
             <input
               type="text"
-              className="input-base"
+              className={`input-base ${formErrors.cardName ? 'border-red-500' : ''}`}
               placeholder="John Doe"
               value={paymentData.cardName}
-              onChange={(e) => setPaymentData({ ...paymentData, cardName: e.target.value })}
+              onChange={(e) => handleCardNameChange(e.target.value)}
             />
+            {formErrors.cardName && (
+              <p className="text-sm text-red-500 mt-1 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {formErrors.cardName}
+              </p>
+            )}
           </div>
 
           {/* Card Number */}
@@ -187,9 +306,8 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
               <IMaskInput
                 mask="0000 0000 0000 0000"
                 value={paymentData.cardNumber}
-                unmask={false}
                 onAccept={handleCardNumberChange}
-                className="input-base pr-12"
+                className={`input-base pr-12 ${formErrors.cardNumber ? 'border-red-500' : ''}`}
                 placeholder="4242 4242 4242 4242"
               />
               {cardBrand && (
@@ -200,6 +318,12 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
                 />
               )}
             </div>
+            {formErrors.cardNumber && (
+              <p className="text-sm text-red-500 mt-1 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                {formErrors.cardNumber}
+              </p>
+            )}
           </div>
 
           {/* Expiry and CVV */}
@@ -211,11 +335,16 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
               <IMaskInput
                 mask="00/00"
                 value={paymentData.expiry}
-                unmask={false}
                 onAccept={handleExpiryChange}
-                className="input-base"
+                className={`input-base ${formErrors.expiry ? 'border-red-500' : ''}`}
                 placeholder="MM/YY"
               />
+              {formErrors.expiry && (
+                <p className="text-sm text-red-500 mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {formErrors.expiry}
+                </p>
+              )}
             </div>
 
             <div className="form-group">
@@ -225,11 +354,16 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
               <IMaskInput
                 mask="000"
                 value={paymentData.cvv}
-                unmask={false}
-                onAccept={(value) => setPaymentData({ ...paymentData, cvv: value })}
-                className="input-base"
+                onAccept={handleCVVChange}
+                className={`input-base ${formErrors.cvv ? 'border-red-500' : ''}`}
                 placeholder="123"
               />
+              {formErrors.cvv && (
+                <p className="text-sm text-red-500 mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {formErrors.cvv}
+                </p>
+              )}
             </div>
           </div>
 
@@ -239,6 +373,32 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
               Your card will not be charged until after your 30-day trial period
             </p>
           </div>
+
+          {/* Terms of Service */}
+          <div className="form-group">
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={acceptedTerms}
+                onChange={() => setAcceptedTerms(!acceptedTerms)}
+                className="mt-1"
+              />
+              <label htmlFor="terms" className="text-sm text-gray-600">
+                I accept the <a 
+                  href="https://prosecurelsp.com/toc.php" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  terms of service
+                </a>
+              </label>
+            </div>
+          </div>
+
+          {/* Billing Agreement */}
+
         </div>
       </div>
 
@@ -251,7 +411,7 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
         </button>
         <button
           onClick={handleSubmit}
-          disabled={loading || !paymentData.cardName || !paymentData.cardNumber || !paymentData.expiry || !paymentData.cvv}
+          disabled={loading || !acceptedTerms || !isFormValid}
           className="flex-1 button-primary flex items-center justify-center"
         >
           {loading ? (

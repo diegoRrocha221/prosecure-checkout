@@ -6,7 +6,7 @@
 
 :root {
   --primary-text: #25364D;
-  --primary-button: #F4B860;
+  --primary-button: #157347;
 }
 
 body {
@@ -60,7 +60,7 @@ body {
 }
 
 .button-primary {
-  @apply px-6 py-4 bg-[#F4B860] text-white rounded-lg hover:bg-[#e5aa57] transition-colors font-medium text-lg;
+  @apply px-6 py-4 bg-[#157347] text-white rounded-lg hover:bg-[#157347] transition-colors font-medium text-lg;
 }
 
 .button-secondary {
