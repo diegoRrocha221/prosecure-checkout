@@ -1,6 +1,6 @@
 import { FC, useState, useEffect } from 'react';
 import { IMaskInput } from 'react-imask';
-import { Loader2, LockKeyhole, CreditCard, AlertCircle } from 'lucide-react';
+import { Loader2, LockKeyhole, CreditCard, AlertCircle, Clock } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
 import { PaymentProps, PaymentInfo } from '../../types/checkout';
 import { checkoutService } from '../../services/api';
@@ -46,6 +46,16 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
   }>({});
   const [isFormValid, setIsFormValid] = useState(false);
   const [currentCheckoutId, setCurrentCheckoutId] = useState(checkoutId);
+  
+  // Estado para o modal de progresso
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressStep, setProgressStep] = useState(0);
+  const progressMessages = [
+    "Creating your account...",
+    "Validating information...",
+    "Configuring services...",
+    "Finalizing..."
+  ];
 
   // Detect card brand when card number changes
   useEffect(() => {
@@ -56,6 +66,16 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
   useEffect(() => {
     setPaymentData(prev => ({ ...prev, sid: currentCheckoutId }));
   }, [currentCheckoutId]);
+
+  // Progress animation effect
+  useEffect(() => {
+    if (showProgressModal && progressStep < progressMessages.length) {
+      const timer = setTimeout(() => {
+        setProgressStep(prev => prev + 1);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [showProgressModal, progressStep]);
 
   // Validate form when input changes
   useEffect(() => {
@@ -196,13 +216,26 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
     }
 
     setLoading(true);
+    setShowProgressModal(true); // Mostrar modal de progresso
+    setProgressStep(0);
 
     try {
-      // Generate a new checkout ID and update the database record
-      const activeCheckoutId = await generateAndUpdateCheckoutId();
+      // Simular a geração do ID para continuar usando a função,
+      // mas usar o ID atual para evitar erros de comunicação com a API
+      let activeCheckoutId = currentCheckoutId;
+      
+      try {
+        // Tenta gerar um novo ID, mas não interrompe o fluxo se falhar
+        const newId = await generateAndUpdateCheckoutId();
+        if (newId) {
+          activeCheckoutId = newId;
+        }
+      } catch (idError) {
+        console.error("Error updating checkout ID, continuing with current ID:", idError);
+        // Continua com o ID atual em caso de erro
+      }
       
       // Prepare the payment data for the API
-      // Note: The API expects different property names than our internal PaymentInfo interface
       const paymentPayload = {
         cardname: paymentData.cardName,
         cardnumber: paymentData.cardNumber.replace(/\D/g, ''),
@@ -211,18 +244,38 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
         sid: activeCheckoutId
       };
       
-      // Process the payment with the updated checkout ID
+      // Process the payment with the checkout ID
       const response = await checkoutService.processPayment(paymentPayload);
 
+      // Simulação de animação de progresso - avance cada 1.5 segundos
+      for (let i = 0; i < progressMessages.length; i++) {
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          setProgressStep(i);
+        }
+      }
+
+      // Aguarda mais 2 segundos após a conclusão da animação (total ~8 segundos)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Fecha o modal e mostra a tela de sucesso
+      setShowProgressModal(false);
+      
       if (response.status === 'success') {
         setSuccess(true);
+        
+        // Aguarda 10 segundos antes do redirecionamento
         setTimeout(() => {
           window.location.href = 'https://prosecurelsp.com/users/index.php?err3=true';
-        }, 5000);
+        }, 10000);
       } else {
         setError('Payment processing failed. Please try again.');
       }
     } catch (err: any) {
+      // Aguardar um pouco para não fechar o modal abruptamente em caso de erro
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setShowProgressModal(false);
+      
       if (err.response) {
         setError('Payment processing failed. Please try again.');
       } else {
@@ -233,21 +286,57 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
     }
   };
 
+  // Modal de progresso
+  const ProgressModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-6">
+            <Loader2 className="w-12 h-12 text-primary animate-spin" />
+          </div>
+          
+          <div className="space-y-4 w-full">
+            {progressMessages.map((message, index) => (
+              <div key={index} className={`flex items-center ${index <= progressStep ? 'text-primary' : 'text-gray-400'}`}>
+                {index < progressStep ? (
+                  <div className="w-5 h-5 mr-3 rounded-full bg-green-500 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                ) : index === progressStep ? (
+                  <div className="w-5 h-5 mr-3">
+                    <div className="w-full h-full rounded-full border-2 border-t-primary border-r-primary border-b-primary border-l-gray-200 animate-spin"></div>
+                  </div>
+                ) : (
+                  <div className="w-5 h-5 mr-3 rounded-full border-2 border-gray-300"></div>
+                )}
+                <span>{message}</span>
+              </div>
+            ))}
+          </div>
+          
+          <p className="mt-6 text-sm text-gray-500">
+            Please do not close this window while we process your account.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   if (success) {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <div className="bg-white rounded-lg p-8 shadow-sm text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-8 h-8 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-bold text-primary mb-2">Payment Successful!</h2>
+          <h2 className="text-2xl font-bold text-primary mb-2">Verification in Progress</h2>
           <p className="text-gray-600 mb-4">
-            Thank you for subscribing to ProSecureLSP. An activation link has been sent to your email.
+            Your account has been created and you can already use the services. We are still validating some payment information.
           </p>
           <p className="text-gray-500 text-sm">
-            Redirecting you to the dashboard...
+            Redirecting you to the portal...
           </p>
         </div>
       </div>
@@ -256,6 +345,8 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
 
   return (
     <div className="space-y-6 max-w-form mx-auto">
+      {showProgressModal && <ProgressModal />}
+      
       <div className="bg-white rounded-lg p-8 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -415,10 +506,7 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
           className="flex-1 button-primary flex items-center justify-center"
         >
           {loading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              Processing...
-            </>
+            "Processing..."
           ) : (
             'Complete Purchase'
           )}

@@ -237,7 +237,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
         {/* Telefone */}
         <div className="form-group mb-6">
           <label className="block text-sm font-medium text-primary mb-2">
-            Phone Number {renderRequiredIndicator('phone')}
+            Mobile Phone Number {renderRequiredIndicator('phone')}
             {isPhoneVerified && (
               <span className="ml-2 text-green-600 inline-flex items-center">
                 <Check className="w-4 h-4 mr-1" />
@@ -338,6 +338,20 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
 
         {/* Estado e Cidade */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="form-group">
+            <label className="block text-sm font-medium text-primary mb-2">
+              City {renderRequiredIndicator('city')}
+            </label>
+            <input
+              type="text"
+              className="input-base"
+              placeholder="San Francisco"
+              value={formData.city}
+              onChange={(e) => onUpdate({ ...formData, city: e.target.value })}
+              readOnly={formData.country.code === 'US'}
+              required
+            />
+          </div>
           <div className="form-group">
             <label className="block text-sm font-medium text-primary mb-2">
               State {renderRequiredIndicator('state')}
@@ -353,20 +367,6 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
             />
           </div>
           
-          <div className="form-group">
-            <label className="block text-sm font-medium text-primary mb-2">
-              City {renderRequiredIndicator('city')}
-            </label>
-            <input
-              type="text"
-              className="input-base"
-              placeholder="San Francisco"
-              value={formData.city}
-              onChange={(e) => onUpdate({ ...formData, city: e.target.value })}
-              readOnly={formData.country.code === 'US'}
-              required
-            />
-          </div>
         </div>
 
         {/* Rua e Complemento */}
