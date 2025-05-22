@@ -31,6 +31,20 @@
   body {
     @apply font-sans text-primary bg-background;
   }
+  
+  /* Lighter placeholder color */
+  ::placeholder {
+    color: #CCCCCC !important;
+    opacity: 1;
+  }
+  
+  :-ms-input-placeholder {
+    color: #CCCCCC !important;
+  }
+  
+  ::-ms-input-placeholder {
+    color: #CCCCCC !important;
+  }
 }
 
 @layer components {
@@ -39,7 +53,7 @@
   }
 
   .button-primary {
-    @apply px-6 py-4 bg-primary-button text-white rounded-lg hover:bg-accent-hover transition-colors font-medium text-lg;
+    @apply px-6 py-4 bg-[#157347] text-white rounded-lg hover:bg-[#126A40] transition-colors font-medium text-lg;
   }
 
   .button-secondary {
@@ -51,7 +65,7 @@
   }
 
   .step-indicator.active {
-    @apply bg-primary-button text-white;
+    @apply bg-[#157347] text-white;
   }
 
   .step-indicator.completed {
@@ -67,7 +81,7 @@
   }
 
   .resend-button {
-    @apply text-accent hover:text-accent-hover disabled:text-gray-400 text-sm font-medium mt-2;
+    @apply text-[#157347] hover:text-[#126A40] disabled:text-gray-400 text-sm font-medium mt-2;
   }
 }
 

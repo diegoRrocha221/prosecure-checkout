@@ -159,7 +159,7 @@ const CheckoutForm: FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#157347] mx-auto"></div>
           <p className="mt-4 text-gray-600">Initializing checkout...</p>
         </div>
       </div>
@@ -180,7 +180,7 @@ const CheckoutForm: FC = () => {
               key={step.number}
               className={`relative flex flex-col items-center ${
                 step.number === currentStep 
-                  ? 'text-blue-600' 
+                  ? 'text-[#157347]' 
                   : step.number < currentStep 
                     ? 'text-gray-500'
                     : 'text-gray-300'
@@ -189,7 +189,7 @@ const CheckoutForm: FC = () => {
               <div className={`
                 w-10 h-10 rounded-full flex items-center justify-center border-2
                 ${step.number === currentStep 
-                  ? 'border-blue-600 bg-blue-50' 
+                  ? 'border-[#157347] bg-green-50' 
                   : step.number < currentStep
                     ? 'border-gray-500 bg-gray-50'
                     : 'border-gray-300'
@@ -250,7 +250,7 @@ const CheckoutForm: FC = () => {
         {isLoading && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#157347] mx-auto"></div>
               <p className="mt-4 text-gray-600">Processing...</p>
             </div>
           </div>

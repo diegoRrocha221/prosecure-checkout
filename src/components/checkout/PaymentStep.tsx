@@ -292,12 +292,12 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
       <div className="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full">
         <div className="flex flex-col items-center text-center">
           <div className="mb-6">
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            <Loader2 className="w-12 h-12 text-[#157347] animate-spin" />
           </div>
           
           <div className="space-y-4 w-full">
             {progressMessages.map((message, index) => (
-              <div key={index} className={`flex items-center ${index <= progressStep ? 'text-primary' : 'text-gray-400'}`}>
+              <div key={index} className={`flex items-center ${index <= progressStep ? 'text-[#157347]' : 'text-gray-400'}`}>
                 {index < progressStep ? (
                   <div className="w-5 h-5 mr-3 rounded-full bg-green-500 flex items-center justify-center">
                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -306,7 +306,7 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
                   </div>
                 ) : index === progressStep ? (
                   <div className="w-5 h-5 mr-3">
-                    <div className="w-full h-full rounded-full border-2 border-t-primary border-r-primary border-b-primary border-l-gray-200 animate-spin"></div>
+                    <div className="w-full h-full rounded-full border-2 border-t-[#157347] border-r-[#157347] border-b-[#157347] border-l-gray-200 animate-spin"></div>
                   </div>
                 ) : (
                   <div className="w-5 h-5 mr-3 rounded-full border-2 border-gray-300"></div>
@@ -333,10 +333,10 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
           </div>
           <h2 className="text-2xl font-bold text-primary mb-2">Verification in Progress</h2>
           <p className="text-gray-600 mb-4">
-            Your account has been created and you can already use the services. We are still validating some payment information.
+            Your account has been created. You will need to verify your email before you can access your account. Please check your email for the email verification link.
           </p>
           <p className="text-gray-500 text-sm">
-            Redirecting you to the portal...
+            Redirecting you to the login page...
           </p>
         </div>
       </div>
@@ -355,7 +355,7 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
               Enter your card details to complete the subscription
             </p>
           </div>
-          <div className="flex items-center gap-2 text-primary">
+          <div className="flex items-center gap-2 text-[#157347]">
             <LockKeyhole className="w-5 h-5" />
             <span className="text-sm font-medium">Secure Payment</span>
           </div>
@@ -480,16 +480,13 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
                   href="https://prosecurelsp.com/toc.php" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-[#157347] hover:underline"
                 >
                   terms of service
                 </a>
               </label>
             </div>
           </div>
-
-          {/* Billing Agreement */}
-
         </div>
       </div>
 
@@ -503,10 +500,16 @@ export const PaymentStep: FC<PaymentProps> = ({ onBack, checkoutId }) => {
         <button
           onClick={handleSubmit}
           disabled={loading || !acceptedTerms || !isFormValid}
-          className="flex-1 button-primary flex items-center justify-center"
+          className={`flex-1 py-4 rounded-lg font-medium text-lg transition-colors flex items-center justify-center
+            ${(!loading && acceptedTerms && isFormValid)
+              ? 'bg-[#157347] text-white hover:bg-[#126A40]' 
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
         >
           {loading ? (
-            "Processing..."
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Processing...
+            </>
           ) : (
             'Complete Purchase'
           )}

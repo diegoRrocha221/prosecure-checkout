@@ -30,14 +30,16 @@ export const VerificationBox: FC<VerificationBoxProps> = ({
     }
   }, [timer]);
 
-  const handleVerify = () => {
-    if (code.length === 6) {
+  // Auto-submit verification code when it's 6 digits
+  useEffect(() => {
+    if (code.length === 6 && !isVerifying) {
       onVerify(code);
     }
-  };
+  }, [code, isVerifying, onVerify]);
 
   const handleResend = () => {
     setTimer(30);
+    setCode('');
     onResend();
   };
 
@@ -61,6 +63,7 @@ export const VerificationBox: FC<VerificationBoxProps> = ({
             onAccept={(value) => setCode(value)}
             className="w-48 px-4 py-3 text-center tracking-widest rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl"
             placeholder="000000"
+            disabled={isVerifying}
           />
         </div>
 
@@ -70,33 +73,14 @@ export const VerificationBox: FC<VerificationBoxProps> = ({
           </Alert>
         )}
 
-        <div className="flex justify-center space-x-4">
-          <button
-            onClick={handleVerify}
-            disabled={code.length !== 6 || isVerifying}
-            className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-              code.length === 6 && !isVerifying
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            {isVerifying ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2 inline" />
-                Verifying...
-              </>
-            ) : (
-              'Verify'
-            )}
-          </button>
-
+        <div className="flex justify-center">
           <button
             onClick={handleResend}
             disabled={timer > 0 || isVerifying}
             className={`px-4 py-2 rounded-lg font-medium ${
               timer > 0 || isVerifying
                 ? 'text-gray-400 cursor-not-allowed'
-                : 'text-blue-600 hover:text-blue-700'
+                : 'text-[#157347] hover:text-[#126A40]'
             }`}
           >
             {timer > 0 ? (
@@ -106,6 +90,13 @@ export const VerificationBox: FC<VerificationBoxProps> = ({
             )}
           </button>
         </div>
+        
+        {isVerifying && (
+          <div className="flex justify-center items-center text-[#157347]">
+            <Loader2 className="w-5 h-5 animate-spin mr-2" />
+            <span>Verifying...</span>
+          </div>
+        )}
       </div>
     </div>
   );

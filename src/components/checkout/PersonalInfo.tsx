@@ -32,10 +32,13 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
     resetVerification
   } = useMFAVerification();
 
+  const [fieldErrors, setFieldErrors] = useState<{[key: string]: boolean}>({});
+  const [isAttemptedSubmit, setIsAttemptedSubmit] = useState(false);
+
   // Inicializar o estado de verificação com base no formData
   useEffect(() => {
     if (formData.mfaVerified && !isVerified) {
-
+      // Keep existing behavior
     }
   }, []);
 
@@ -127,6 +130,36 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
     }
   };
 
+  const handleContinueClick = () => {
+    if (!isFormValid) {
+      setIsAttemptedSubmit(true);
+      
+      // Identify and highlight missing fields
+      const errors: {[key: string]: boolean} = {};
+      
+      if (formData.firstName.trim() === '') errors.firstName = true;
+      if (formData.lastName.trim() === '') errors.lastName = true;
+      if (formData.email.trim() === '' || emailAvailability.available !== true) errors.email = true;
+      if (formData.phone.trim() === '' || !isPhoneValid()) errors.phone = true;
+      if (formData.zipCode.trim() === '') errors.zipCode = true;
+      if (formData.state.trim() === '') errors.state = true;
+      if (formData.city.trim() === '') errors.city = true;
+      if (formData.street.trim() === '') errors.street = true;
+      
+      setFieldErrors(errors);
+      return;
+    }
+    
+    // If phone isn't verified yet, initiate verification
+    if (!isPhoneVerified && !showVerificationInput) {
+      handleVerify();
+      return;
+    }
+    
+    // If form is valid and phone is verified, proceed to next step
+    onNext();
+  };
+
   const isPhoneValid = () => {
     const countryConfig = COUNTRY_CONFIGS[formData.country.code as CountryCode];
     return countryConfig.validate(formData.phone);
@@ -143,9 +176,9 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
       formData.state.trim() !== '' &&
       formData.city.trim() !== '' &&
       formData.street.trim() !== '' &&
-      (isVerified || formData.mfaVerified) // Verifica ambos os estados de verificação
+      isPhoneValid()
     );
-  }, [formData, isVerified, emailAvailability.available]);
+  }, [formData, emailAvailability.available]);
 
   const renderRequiredIndicator = (fieldName: keyof typeof formData) => {
     if (fieldName !== 'additional') {
@@ -156,6 +189,45 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
 
   // Determina se o telefone está verificado (usando formData ou estado atual)
   const isPhoneVerified = isVerified || formData.mfaVerified;
+
+  const getButtonText = () => {
+    if (isVerifying) {
+      return "Verifying...";
+    }
+    
+    if (!isPhoneVerified && !showVerificationInput) {
+      return "Verify Mobile Phone Number";
+    }
+    
+    if (showVerificationInput && !isPhoneVerified) {
+      return "Verify Code";
+    }
+    
+    return "Continue";
+  };
+  
+  const getButtonEnabled = () => {
+    // Button is enabled for code verification
+    if (showVerificationInput && !isPhoneVerified) {
+      return true;
+    }
+    
+    // Button is enabled for phone verification
+    if (!isPhoneVerified && !showVerificationInput && isPhoneValid()) {
+      return true;
+    }
+    
+    // Button is enabled to continue if form is valid and phone is verified
+    return isFormValid && isPhoneVerified;
+  };
+
+  const getFieldClassName = (fieldName: string) => {
+    const baseClass = "input-base";
+    if (isAttemptedSubmit && fieldErrors[fieldName]) {
+      return `${baseClass} border-red-500 focus:border-red-500 focus:ring-red-500`;
+    }
+    return baseClass;
+  };
 
   return (
     <div className="space-y-6 max-w-form mx-auto">
@@ -171,12 +243,18 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
             </label>
             <input
               type="text"
-              className="input-base"
+              className={getFieldClassName('firstName')}
               value={formData.firstName}
               onChange={(e) => onUpdate({ ...formData, firstName: e.target.value })}
               placeholder="John"
               required
             />
+            {isAttemptedSubmit && fieldErrors.firstName && (
+              <p className="text-sm text-red-500 mt-1 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                First name is required
+              </p>
+            )}
           </div>
           
           <div className="form-group">
@@ -185,12 +263,18 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
             </label>
             <input
               type="text"
-              className="input-base"
+              className={getFieldClassName('lastName')}
               value={formData.lastName}
               onChange={(e) => onUpdate({ ...formData, lastName: e.target.value })}
               placeholder="Doe"
               required
             />
+            {isAttemptedSubmit && fieldErrors.lastName && (
+              <p className="text-sm text-red-500 mt-1 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                Last name is required
+              </p>
+            )}
           </div>
         </div>
 
@@ -202,7 +286,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
           <div className="relative">
             <input
               type="email"
-              className={`input-base pr-10 ${
+              className={`${getFieldClassName('email')} pr-10 ${
                 formData.email && emailAvailability.available === false 
                   ? 'border-red-500' 
                   : formData.email && emailAvailability.available === true 
@@ -230,6 +314,12 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
             <p className="mt-1 text-sm text-red-600 flex items-center">
               <AlertTriangle className="w-4 h-4 mr-1" />
               This email is already registered
+            </p>
+          )}
+          {isAttemptedSubmit && fieldErrors.email && (
+            <p className="text-sm text-red-500 mt-1 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              Please enter a valid email
             </p>
           )}
         </div>
@@ -268,32 +358,29 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
               ))}
             </select>
             
-            <div className="flex-1 relative">
+            <div className="flex-1">
               <IMaskInput
                 mask={COUNTRY_CONFIGS[formData.country.code as CountryCode].mask}
                 value={formData.phone}
                 unmask={false}
                 onAccept={handlePhoneChange}
-                className={`input-base ${isPhoneVerified ? 'bg-gray-50' : ''}`}
+                className={`${getFieldClassName('phone')} ${isPhoneVerified ? 'bg-gray-50' : ''}`}
                 placeholder={COUNTRY_CONFIGS[formData.country.code as CountryCode].example}
                 disabled={isPhoneVerified}
                 required
               />
-              {!isPhoneVerified && (
-                <button
-                  onClick={handleVerify}
-                  disabled={isVerifying || !formData.phone || !formData.email || !isPhoneValid()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-accent text-white rounded-md hover:bg-accent-hover disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isVerifying ? 'Sending...' : 'Verify'}
-                </button>
-              )}
             </div>
           </div>
           {!isPhoneVerified && formData.phone && !isPhoneValid() && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
               <AlertCircle className="w-4 h-4 mr-1" />
               Please enter a valid phone number
+            </p>
+          )}
+          {isAttemptedSubmit && fieldErrors.phone && (
+            <p className="text-sm text-red-500 mt-1 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              Phone number is required
             </p>
           )}
         </div>
@@ -330,27 +417,38 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
             value={formData.zipCode}
             unmask={false}
             onAccept={handleZipCodeChange}
-            className="input-base"
+            className={getFieldClassName('zipCode')}
             placeholder="12345"
             required
           />
+          {isAttemptedSubmit && fieldErrors.zipCode && (
+            <p className="text-sm text-red-500 mt-1 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              ZIP code is required
+            </p>
+          )}
         </div>
 
         {/* Estado e Cidade */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="form-group">
+          <div className="form-group">
             <label className="block text-sm font-medium text-primary mb-2">
               City {renderRequiredIndicator('city')}
             </label>
             <input
               type="text"
-              className="input-base"
+              className={getFieldClassName('city')}
               placeholder="San Francisco"
               value={formData.city}
               onChange={(e) => onUpdate({ ...formData, city: e.target.value })}
-              readOnly={formData.country.code === 'US'}
               required
             />
+            {isAttemptedSubmit && fieldErrors.city && (
+              <p className="text-sm text-red-500 mt-1 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                City is required
+              </p>
+            )}
           </div>
           <div className="form-group">
             <label className="block text-sm font-medium text-primary mb-2">
@@ -358,15 +456,20 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
             </label>
             <input
               type="text"
-              className="input-base"
+              className={getFieldClassName('state')}
               placeholder="CA"
               value={formData.state}
               onChange={(e) => onUpdate({ ...formData, state: e.target.value })}
-              readOnly={formData.country.code === 'US'}
+              readOnly={formData.country.code === 'US'} 
               required
             />
+            {isAttemptedSubmit && fieldErrors.state && (
+              <p className="text-sm text-red-500 mt-1 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                State is required
+              </p>
+            )}
           </div>
-          
         </div>
 
         {/* Rua e Complemento */}
@@ -377,12 +480,18 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
             </label>
             <input
               type="text"
-              className="input-base"
+              className={getFieldClassName('street')}
               placeholder="123 Main St"
               value={formData.street}
               onChange={(e) => onUpdate({ ...formData, street: e.target.value })}
               required
             />
+            {isAttemptedSubmit && fieldErrors.street && (
+              <p className="text-sm text-red-500 mt-1 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                Street is required
+              </p>
+            )}
           </div>
           
           <div className="form-group">
@@ -401,14 +510,14 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
       </div>
 
       <button
-        onClick={onNext}
-        disabled={!isFormValid}
+        onClick={handleContinueClick}
+        disabled={isVerifying || (!getButtonEnabled())}
         className={`w-full py-4 rounded-lg font-medium text-lg transition-colors
-          ${isFormValid 
+          ${getButtonEnabled()
             ? 'bg-[#157347] text-white hover:bg-[#126A40]' 
             : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
       >
-        Continue
+        {getButtonText()}
       </button>
     </div>
   );
