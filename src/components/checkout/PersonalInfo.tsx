@@ -224,7 +224,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
   const getFieldClassName = (fieldName: string) => {
     const baseClass = "input-base";
     if (isAttemptedSubmit && fieldErrors[fieldName]) {
-      return `${baseClass} border-red-500 focus:border-red-500 focus:ring-red-500`;
+      return `${baseClass} border-red-500 focus:border-red-500 focus:ring-red-500 bg-red-50`;
     }
     return baseClass;
   };
@@ -460,7 +460,6 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
               placeholder="CA"
               value={formData.state}
               onChange={(e) => onUpdate({ ...formData, state: e.target.value })}
-              readOnly={formData.country.code === 'US'} 
               required
             />
             {isAttemptedSubmit && fieldErrors.state && (

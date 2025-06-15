@@ -72,6 +72,13 @@ export const AccountCreation: FC<AccountCreationProps> = ({
     return Object.values(validations).every(Boolean);
   }, [validations]);
 
+  // Função para determinar a cor do texto de validação
+  const getValidationTextColor = (isValid: boolean, hasContent: boolean) => {
+    if (isValid) return 'text-green-600';
+    if (hasContent) return 'text-red-600'; // Vermelho quando há conteúdo mas não é válido
+    return 'text-gray-500'; // Cinza quando não há conteúdo
+  };
+
   return (
     <div className="space-y-6 max-w-form mx-auto">
       <div className="bg-white rounded-lg p-8 shadow-sm">
@@ -130,19 +137,19 @@ export const AccountCreation: FC<AccountCreationProps> = ({
               </div>
             </div>
             <div className="mt-2 space-y-1">
-              <div className={`flex items-center text-sm ${validations.hasMinLength ? 'text-green-600' : 'text-gray-500'}`}>
+              <div className={`flex items-center text-sm ${getValidationTextColor(validations.hasMinLength, formData.password.length > 0)}`}>
                 {validations.hasMinLength ? <Check className="w-4 h-4 mr-1" /> : <AlertCircle className="w-4 h-4 mr-1" />}
                 At least 8 characters
               </div>
-              <div className={`flex items-center text-sm ${validations.hasUppercase ? 'text-green-600' : 'text-gray-500'}`}>
+              <div className={`flex items-center text-sm ${getValidationTextColor(validations.hasUppercase, formData.password.length > 0)}`}>
                 {validations.hasUppercase ? <Check className="w-4 h-4 mr-1" /> : <AlertCircle className="w-4 h-4 mr-1" />}
                 One uppercase letter
               </div>
-              <div className={`flex items-center text-sm ${validations.hasNumber ? 'text-green-600' : 'text-gray-500'}`}>
+              <div className={`flex items-center text-sm ${getValidationTextColor(validations.hasNumber, formData.password.length > 0)}`}>
                 {validations.hasNumber ? <Check className="w-4 h-4 mr-1" /> : <AlertCircle className="w-4 h-4 mr-1" />}
                 One number
               </div>
-              <div className={`flex items-center text-sm ${validations.hasSpecial ? 'text-green-600' : 'text-gray-500'}`}>
+              <div className={`flex items-center text-sm ${getValidationTextColor(validations.hasSpecial, formData.password.length > 0)}`}>
                 {validations.hasSpecial ? <Check className="w-4 h-4 mr-1" /> : <AlertCircle className="w-4 h-4 mr-1" />}
                 One special character
               </div>
@@ -178,7 +185,11 @@ export const AccountCreation: FC<AccountCreationProps> = ({
               </div>
             </div>
             {formData.confirmPassword && (
-              <div className={`flex items-center text-sm mt-2 ${validations.passwordsMatch ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`flex items-center text-sm mt-2 ${
+                validations.passwordsMatch 
+                  ? 'text-green-600' 
+                  : 'text-red-600'
+              }`}>
                 {validations.passwordsMatch ? <Check className="w-4 h-4 mr-1" /> : <AlertCircle className="w-4 h-4 mr-1" />}
                 {validations.passwordsMatch ? 'Passphrases match' : 'Passphrases do not match'}
               </div>
