@@ -68,6 +68,10 @@ export const PlanAssociation: FC<PlanAssociationProps> = ({
     }
   }, [formData.email, formData.username, status]);
 
+  const handleAddPlans = () => {
+    window.location.href = 'https://prosecurelsp.com/plans.php';
+  };
+
   const renderContent = () => {
     switch (status) {
       case 'loading':
@@ -136,6 +140,8 @@ export const PlanAssociation: FC<PlanAssociationProps> = ({
         );
 
       case 'error':
+        const isEmptyCart = error.toLowerCase().includes('no items in cart');
+        
         return (
           <div className="space-y-6">
             <div className="text-center">
@@ -143,25 +149,36 @@ export const PlanAssociation: FC<PlanAssociationProps> = ({
                 <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
               <h3 className="text-xl font-semibold text-primary mt-4">
-                Setup Error
+                {isEmptyCart ? 'Oops...' : 'Setup Error'}
               </h3>
               <Alert variant="destructive" className="mt-4">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             </div>
             <div className="flex gap-4">
-              <button
-                onClick={onBack}
-                className="flex-1 button-secondary"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => setStatus('idle')}
-                className="flex-1 button-primary"
-              >
-                Try Again
-              </button>
+              {isEmptyCart ? (
+                <button
+                  onClick={handleAddPlans}
+                  className="w-full button-primary"
+                >
+                  Add Plans
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={onBack}
+                    className="flex-1 button-secondary"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setStatus('idle')}
+                    className="flex-1 button-primary"
+                  >
+                    Try Again
+                  </button>
+                </>
+              )}
             </div>
           </div>
         );

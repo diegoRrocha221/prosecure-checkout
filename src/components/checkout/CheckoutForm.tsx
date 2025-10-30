@@ -37,6 +37,7 @@ const CheckoutForm: FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(STEPS.PERSONAL);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [checkoutId, setCheckoutId] = useState<string>('');
+  const [showEmptyCartError, setShowEmptyCartError] = useState<boolean>(false);
   const { notifications, addNotification, removeNotification } = useNotification();
   const isInitialized = useRef(false);
 
@@ -88,9 +89,26 @@ const CheckoutForm: FC = () => {
     setFormData(newData);
   };
 
+  const checkCartEmpty = async (): Promise<boolean> => {
+    try {
+      const cartResponse = await checkoutService.getCart();
+      return !cartResponse?.items?.length;
+    } catch (error) {
+      console.error('Error checking cart:', error);
+      return true; // Assume empty on error
+    }
+  };
+
   const handleStepNavigation = async (nextStep: number) => {
     if (!checkoutId) {
       addNotification('error', 'Checkout session not initialized. Please refresh the page.');
+      return;
+    }
+
+    // Verificar carrinho vazio antes de navegar
+    const isCartEmpty = await checkCartEmpty();
+    if (isCartEmpty) {
+      setShowEmptyCartError(true);
       return;
     }
   
@@ -156,6 +174,11 @@ const CheckoutForm: FC = () => {
 
   const handleBack = (previousStep: number) => {
     setCurrentStep(previousStep);
+    setShowEmptyCartError(false);
+  };
+
+  const handleAddPlans = () => {
+    window.location.href = 'https://prosecurelsp.com/plans.php';
   };
 
   if (isLoading && !checkoutId) {
@@ -164,6 +187,81 @@ const CheckoutForm: FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#157347] mx-auto"></div>
           <p className="mt-4 text-gray-600">Initializing checkout...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Renderizar erro de carrinho vazio
+  if (showEmptyCartError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Notifications 
+          notifications={notifications}
+          onRemove={removeNotification}
+        />
+        
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="flex justify-between mb-8">
+            {STEPS_INFO.map((step) => (
+              <div 
+                key={step.number}
+                className={`relative flex flex-col items-center ${
+                  step.number === currentStep 
+                    ? 'text-[#157347]' 
+                    : step.number < currentStep 
+                      ? 'text-gray-500'
+                      : 'text-gray-300'
+                }`}
+              >
+                <div className={`
+                  w-10 h-10 rounded-full flex items-center justify-center border-2
+                  ${step.number === currentStep 
+                    ? 'border-[#157347] bg-green-50' 
+                    : step.number < currentStep
+                      ? 'border-gray-500 bg-gray-50'
+                      : 'border-gray-300'
+                  }
+                `}>
+                  {step.number < currentStep ? '✓' : step.number}
+                </div>
+                <div className="mt-2">
+                  <div className="text-sm font-medium">{step.title}</div>
+                  <div className="text-xs">{step.description}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Card>
+            <CardContent>
+              <div className="space-y-6 max-w-form mx-auto">
+                <div className="bg-white rounded-lg p-8 shadow-sm min-h-[400px] flex items-center justify-center">
+                  <div className="space-y-6">
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                        <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-semibold text-primary mt-4">
+                        Oops...
+                      </h3>
+                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-red-800">No items in cart. Please add plans before proceeding.</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleAddPlans}
+                      className="w-full button-primary"
+                    >
+                      Add Plans
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
