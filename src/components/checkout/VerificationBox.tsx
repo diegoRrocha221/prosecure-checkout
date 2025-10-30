@@ -37,10 +37,23 @@ export const VerificationBox: FC<VerificationBoxProps> = ({
     }
   }, [code, isVerifying, onVerify]);
 
+  // FIX 1: Limpar código quando há erro para permitir nova tentativa
+  useEffect(() => {
+    if (error) {
+      setCode('');
+    }
+  }, [error]);
+
   const handleResend = () => {
     setTimer(30);
     setCode('');
     onResend();
+  };
+
+  const handleCodeChange = (value: string) => {
+    // Só permitir dígitos e no máximo 6 caracteres
+    const cleanCode = value.replace(/\D/g, '').slice(0, 6);
+    setCode(cleanCode);
   };
 
   return (
@@ -60,8 +73,10 @@ export const VerificationBox: FC<VerificationBoxProps> = ({
             mask="000000"
             unmask={true}
             value={code}
-            onAccept={(value) => setCode(value)}
-            className="w-48 px-4 py-3 text-center tracking-widest rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl"
+            onAccept={handleCodeChange}
+            className={`w-48 px-4 py-3 text-center tracking-widest rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl ${
+              error ? 'border-red-500 bg-red-50' : 'border-gray-300'
+            }`}
             placeholder="000000"
             disabled={isVerifying}
           />

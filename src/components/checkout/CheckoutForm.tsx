@@ -93,16 +93,19 @@ const CheckoutForm: FC = () => {
       addNotification('error', 'Checkout session not initialized. Please refresh the page.');
       return;
     }
-
+  
     // Só fazer chamada API quando estiver saindo do step ACCOUNT
     if (currentStep === STEPS.ACCOUNT) {
       setIsLoading(true);
       try {
+        // ✅ Incluir o código do país no número de telefone
+        const fullPhoneNumber = `${formData.country.prefix}${formData.phone}`;
+        
         const apiData = {
           checkout_id: checkoutId,
           name: `${formData.firstName} ${formData.lastName}`.trim(),
           email: formData.email,
-          phoneNumber: formData.phone,
+          phoneNumber: fullPhoneNumber, // ✅ Mudança aqui
           zipcode: formData.zipCode,
           state: formData.state,
           city: formData.city,
@@ -111,7 +114,7 @@ const CheckoutForm: FC = () => {
           username: formData.email,
           passphrase: formData.password
         };
-
+  
         console.log('Sending API data:', apiData);
         await checkoutService.createOrUpdateCheckout(apiData);
         setCurrentStep(nextStep);

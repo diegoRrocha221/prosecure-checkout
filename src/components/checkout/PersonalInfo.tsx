@@ -86,6 +86,16 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
     return () => clearTimeout(timeoutId);
   }, [formData.email]);
 
+  // FIX 3: Função para limpar erro de campo quando usuário começar a digitar
+  const clearFieldError = (fieldName: string) => {
+    if (fieldErrors[fieldName]) {
+      setFieldErrors(prev => ({
+        ...prev,
+        [fieldName]: false
+      }));
+    }
+  };
+
   const handlePhoneChange = (value: string) => {
     const cleanedPhone = cleanPhoneNumber(value);
     onUpdate({ 
@@ -94,10 +104,13 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
       mfaVerified: false // Reset do estado de verificação quando o telefone muda
     });
     resetVerification(); // Reset do estado do hook de verificação
+    clearFieldError('phone'); // Limpar erro do campo telefone
   };
   
   const handleZipCodeChange = async (zip: string) => {
     onUpdate({ ...formData, zipCode: zip });
+    clearFieldError('zipCode'); // Limpar erro do campo ZIP
+    
     if (formData.country.code === 'US' && zip.length === 5) {
       try {
         const response = await fetch(`https://api.zippopotam.us/us/${zip}`);
@@ -109,6 +122,9 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
             state: data.places[0]['state abbreviation'],
             city: data.places[0]['place name'],
           });
+          // Limpar erros dos campos que foram preenchidos automaticamente
+          clearFieldError('state');
+          clearFieldError('city');
         }
       } catch (error) {
         console.error('Error fetching address data:', error);
@@ -131,7 +147,17 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
   };
 
   const handleContinueClick = () => {
-    if (!isFormValid) {
+    // FIX 2: Verificação mais rigorosa para MFA
+    const isPhoneVerified = isVerified || formData.mfaVerified;
+    
+    // If phone isn't verified yet, initiate verification
+    if (!isPhoneVerified && !showVerificationInput && isPhoneValid()) {
+      handleVerify();
+      return;
+    }
+    
+    // If phone is verified but form is not complete, show errors
+    if (!isFormValid || !isPhoneVerified) {
       setIsAttemptedSubmit(true);
       
       // Identify and highlight missing fields
@@ -150,12 +176,13 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
       return;
     }
     
-    // If phone isn't verified yet, initiate verification
-    if (!isPhoneVerified && !showVerificationInput) {
-      handleVerify();
-      return;
-    }
-    
+
+      onUpdate({
+        ...formData,
+        password: '',
+        confirmPassword: ''
+      });
+
     // If form is valid and phone is verified, proceed to next step
     onNext();
   };
@@ -223,10 +250,42 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
 
   const getFieldClassName = (fieldName: string) => {
     const baseClass = "input-base";
+    // FIX 3: Só mostrar erro se tentou submeter E tem erro E campo está vazio
     if (isAttemptedSubmit && fieldErrors[fieldName]) {
       return `${baseClass} border-red-500 focus:border-red-500 focus:ring-red-500 bg-red-50`;
     }
     return baseClass;
+  };
+
+  // Funções de handlers para limpar erros quando usuário digitar
+  const handleFirstNameChange = (value: string) => {
+    onUpdate({ ...formData, firstName: value });
+    clearFieldError('firstName');
+  };
+
+  const handleLastNameChange = (value: string) => {
+    onUpdate({ ...formData, lastName: value });
+    clearFieldError('lastName');
+  };
+
+  const handleEmailChange = (value: string) => {
+    onUpdate({ ...formData, email: value });
+    clearFieldError('email');
+  };
+
+  const handleStateChange = (value: string) => {
+    onUpdate({ ...formData, state: value });
+    clearFieldError('state');
+  };
+
+  const handleCityChange = (value: string) => {
+    onUpdate({ ...formData, city: value });
+    clearFieldError('city');
+  };
+
+  const handleStreetChange = (value: string) => {
+    onUpdate({ ...formData, street: value });
+    clearFieldError('street');
   };
 
   return (
@@ -245,7 +304,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
               type="text"
               className={getFieldClassName('firstName')}
               value={formData.firstName}
-              onChange={(e) => onUpdate({ ...formData, firstName: e.target.value })}
+              onChange={(e) => handleFirstNameChange(e.target.value)}
               placeholder="John"
               required
             />
@@ -265,7 +324,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
               type="text"
               className={getFieldClassName('lastName')}
               value={formData.lastName}
-              onChange={(e) => onUpdate({ ...formData, lastName: e.target.value })}
+              onChange={(e) => handleLastNameChange(e.target.value)}
               placeholder="Doe"
               required
             />
@@ -294,7 +353,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
                     : ''
               }`}
               value={formData.email}
-              onChange={(e) => onUpdate({ ...formData, email: e.target.value })}
+              onChange={(e) => handleEmailChange(e.target.value)}
               placeholder="john.doe@example.com"
               required
             />
@@ -348,6 +407,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
                   mfaVerified: false // Reset verificação quando o país muda
                 });
                 resetVerification();
+                clearFieldError('phone');
               }}
               disabled={isPhoneVerified}
             >
@@ -380,7 +440,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
           {isAttemptedSubmit && fieldErrors.phone && (
             <p className="text-sm text-red-500 mt-1 flex items-center">
               <AlertCircle className="w-4 h-4 mr-1" />
-              Phone number is required
+              Phone number is required and must be verified
             </p>
           )}
         </div>
@@ -440,7 +500,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
               className={getFieldClassName('city')}
               placeholder="San Francisco"
               value={formData.city}
-              onChange={(e) => onUpdate({ ...formData, city: e.target.value })}
+              onChange={(e) => handleCityChange(e.target.value)}
               required
             />
             {isAttemptedSubmit && fieldErrors.city && (
@@ -459,7 +519,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
               className={getFieldClassName('state')}
               placeholder="CA"
               value={formData.state}
-              onChange={(e) => onUpdate({ ...formData, state: e.target.value })}
+              onChange={(e) => handleStateChange(e.target.value)}
               required
             />
             {isAttemptedSubmit && fieldErrors.state && (
@@ -482,7 +542,7 @@ export const PersonalInfo: FC<PersonalInfoProps> = ({ formData, onUpdate, onNext
               className={getFieldClassName('street')}
               placeholder="123 Main St"
               value={formData.street}
-              onChange={(e) => onUpdate({ ...formData, street: e.target.value })}
+              onChange={(e) => handleStreetChange(e.target.value)}
               required
             />
             {isAttemptedSubmit && fieldErrors.street && (

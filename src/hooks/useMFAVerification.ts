@@ -47,6 +47,7 @@ export const useMFAVerification = () => {
       if (response.data.status === 'authenticated') {
         setIsVerified(true);
         setShowVerificationInput(false);
+        setError(undefined); // Clear any previous errors
       } else {
         setError('Invalid verification code');
       }
@@ -55,9 +56,10 @@ export const useMFAVerification = () => {
       if (err.response?.data?.error?.message) {
         setError(err.response.data.error.message);
       } else {
-        setError('Failed to verify code. Please try again.');
+        setError('Invalid verification code. Please try again.');
       }
     } finally {
+      // FIX 1: Sempre resetar isVerifying, mesmo com erro
       setIsVerifying(false);
     }
   };
